@@ -165,9 +165,9 @@ export async function renderLogger(sessionId, user) {
                style="display:inline-block;background:var(--accent);color:#000;font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 16px;border-radius:6px;border:none;cursor:pointer;letter-spacing:0.04em">
               ▶ Start Bridge
             </button>
-            <div id="bridge-download-hint" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div id="bridge-download-hint" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
               <p style="font-family:var(--mono);font-size:11px;color:var(--text);margin:0 0 10px">
-                Bridge niet gevonden — installeer hem eerst:
+                Nog geen bridge geïnstalleerd? Download hem hier:
               </p>
               <div style="display:flex;gap:8px">
                 <a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-arm64.zip"
@@ -271,31 +271,23 @@ export async function renderLogger(sessionId, user) {
     window.setTcMode('atem-live')
   }
 
+  const isMac = /Mac/i.test(navigator.platform || navigator.userAgent)
+
   function showAtemInfo() {
     document.getElementById('atem-command-block').style.display = 'block'
     document.getElementById('atem-connect-btn').textContent = 'Opnieuw verbinden'
+    // Toon de instructies voor het eigen systeem alvast
+    window.showBridgeOsHint(isMac ? 'mac' : 'win')
   }
 
-  const isMac = /Mac/i.test(navigator.platform || navigator.userAgent)
-
   window.startBridge = () => {
-    const hint = document.getElementById('bridge-download-hint')
     if (!isMac) {
-      // Windows: geen URL scheme — toon meteen de downloadkeuze
-      hint.style.display = 'block'
+      // Windows: geen URL scheme — gebruiker start de .exe handmatig
       window.showBridgeOsHint('win')
       return
     }
-    hint.style.display = 'none'
     // Open de bridge app via het breadcrumb:// URL scheme
     location.href = 'breadcrumb://start'
-    // Houdt de pagina focus? Dan is de app niet geïnstalleerd → toon download
-    setTimeout(() => {
-      if (document.hasFocus()) {
-        hint.style.display = 'block'
-        window.showBridgeOsHint('mac')
-      }
-    }, 1500)
   }
 
   window.showBridgeOsHint = (os) => {
