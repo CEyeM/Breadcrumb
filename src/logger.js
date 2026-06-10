@@ -149,25 +149,30 @@ export async function renderLogger(sessionId, user) {
     <div class="modal-overlay" id="atem-modal" style="display:none">
       <div class="modal">
         <h2>ATEM LIVE BRIDGE</h2>
-        <p>Vul het IP-adres van je ATEM in en draai het commando hieronder in een terminal op dezelfde machine.</p>
+        <p>Vul het IP-adres van je ATEM in. De bridge-naam is uniek per gebruiker zodat meerdere mensen tegelijk kunnen werken.</p>
         <div class="field">
           <label>ATEM IP-adres</label>
           <input type="text" id="atem-ip" placeholder="192.168.1.100" />
+        </div>
+        <div class="field">
+          <label>Bridge naam <span style="font-size:10px;opacity:0.5">(uniek per gebruiker)</span></label>
+          <input type="text" id="atem-bridge-name" placeholder="bijv. jeffrey-studio" />
         </div>
         <button class="btn btn-primary" id="atem-connect-btn" onclick="connectAtem()" style="width:100%;justify-content:center">
           Verbinden
         </button>
 
         <div id="atem-command-block" style="display:none;margin-top:20px">
-          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">
-            Draai dit in een terminal
-          </div>
-          <div style="position:relative">
-            <pre id="atem-command" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 40px 10px 12px;font-family:var(--mono);font-size:12px;color:var(--text);overflow-x:auto;white-space:nowrap"></pre>
-            <button onclick="copyAtemCommand()" title="Kopieer" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px" id="copy-btn">⧉</button>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Bridge installeren op je Mac</div>
+            <ol style="margin:0;padding-left:18px;font-family:var(--mono);font-size:11px;color:var(--text);line-height:2">
+              <li>Download de <a href="https://github.com/CEyeM/Breadcrumb" target="_blank" style="color:var(--accent)">bridge software</a> (map: <code>server/</code>)</li>
+              <li>Dubbelklik <code>install-bridge.command</code></li>
+              <li>Klaar — de bridge start voortaan automatisch</li>
+            </ol>
           </div>
 
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:14px">
             <div class="rt-dot" id="atem-status-dot"></div>
             <span id="atem-status-label" style="font-family:var(--mono);font-size:11px;color:var(--muted)">Wachten op bridge…</span>
           </div>
@@ -224,13 +229,12 @@ export async function renderLogger(sessionId, user) {
   let lastAtemReceived = 0
 
   window.openAtemBridge = () => {
-    const modal = document.getElementById('atem-modal')
-    modal.style.display = 'flex'
-    const saved = localStorage.getItem('atem-ip')
-    if (saved) {
-      document.getElementById('atem-ip').value = saved
-      showAtemCommand(saved)
-    }
+    document.getElementById('atem-modal').style.display = 'flex'
+    const savedIp = localStorage.getItem('atem-ip')
+    const savedName = localStorage.getItem('atem-bridge-name')
+    if (savedIp) document.getElementById('atem-ip').value = savedIp
+    if (savedName) document.getElementById('atem-bridge-name').value = savedName
+    if (savedIp && savedName) showAtemCommand(savedIp, savedName)
     document.getElementById('atem-ip').focus()
   }
 
@@ -240,28 +244,20 @@ export async function renderLogger(sessionId, user) {
 
   window.connectAtem = () => {
     const ip = document.getElementById('atem-ip').value.trim()
-    if (!ip) return
+    const name = document.getElementById('atem-bridge-name').value.trim()
+    if (!ip || !name) return
     localStorage.setItem('atem-ip', ip)
-    showAtemCommand(ip)
+    localStorage.setItem('atem-bridge-name', name)
+    showAtemCommand(ip, name)
+    // Herstart kanaal met nieuwe bridge naam
+    supabase.removeChannel(atemChannel)
+    atemChannel = createAtemChannel(name)
     window.setTcMode('atem-live')
   }
 
-  function showAtemCommand(ip) {
-    const serverPath = window.location.hostname === 'localhost'
-      ? 'server'
-      : 'server'
-    const cmd = `node atem-bridge.js ${ip}`
-    document.getElementById('atem-command').textContent = cmd
+  function showAtemCommand(ip, name) {
     document.getElementById('atem-command-block').style.display = 'block'
     document.getElementById('atem-connect-btn').textContent = 'Opnieuw verbinden'
-  }
-
-  window.copyAtemCommand = () => {
-    const cmd = document.getElementById('atem-command').textContent
-    navigator.clipboard.writeText(cmd)
-    const btn = document.getElementById('copy-btn')
-    btn.textContent = '✓'
-    setTimeout(() => { btn.textContent = '⧉' }, 1500)
   }
 
   function updateAtemDot() {
@@ -472,14 +468,20 @@ export async function renderLogger(sessionId, user) {
       rtLabel.textContent = connected ? 'LIVE' : 'SYNC'
     })
 
-  // ATEM Live TC broadcast
-  const atemChannel = supabase
-    .channel('atem-tc')
-    .on('broadcast', { event: 'timecode' }, ({ payload }) => {
-      tc.receiveAtemTC(payload.tc, payload.ts)
-      lastAtemReceived = Date.now()
-    })
-    .subscribe()
+  // ATEM Live TC broadcast — kanaal per bridge naam
+  function createAtemChannel(name) {
+    const channelName = name ? `atem-tc-${name}` : 'atem-tc'
+    return supabase
+      .channel(channelName)
+      .on('broadcast', { event: 'timecode' }, ({ payload }) => {
+        tc.receiveAtemTC(payload.tc, payload.ts)
+        lastAtemReceived = Date.now()
+      })
+      .subscribe()
+  }
+
+  const savedBridgeName = localStorage.getItem('atem-bridge-name')
+  let atemChannel = createAtemChannel(savedBridgeName)
 
   // ── Load existing entries ─────────────────────────────────────────
   const { data: existingEntries } = await supabase
