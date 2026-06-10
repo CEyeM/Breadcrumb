@@ -64,19 +64,25 @@ cat > "$APP_DIR/Contents/Info.plist" << 'PLIST'
 </plist>
 PLIST
 
-# Zip voor distributie
+# Windows build (.exe — vraagt IP en naam in een consolevenster)
+echo "🔨 Windows versie compileren..."
+npx pkg bridge-standalone.js --target node18-win-x64 --output "$DIST_DIR/Breadcrumb Bridge.exe"
+
+# Zips voor distributie
 cd "$DIST_DIR"
 zip -r "Breadcrumb-Bridge-${ARCH}.zip" "$APP_NAME.app"
+zip -j "Breadcrumb-Bridge-windows.zip" "Breadcrumb Bridge.exe"
 
 echo ""
 echo "==================================="
 echo "  ✅ Klaar!"
 echo "==================================="
 echo ""
-echo "  App: $APP_DIR"
-echo "  Zip: $DIST_DIR/Breadcrumb-Bridge-${ARCH}.zip"
+echo "  App:     $APP_DIR"
+echo "  Mac zip: $DIST_DIR/Breadcrumb-Bridge-${ARCH}.zip"
+echo "  Win zip: $DIST_DIR/Breadcrumb-Bridge-windows.zip"
 echo ""
-echo "  Upload de zip naar GitHub Releases."
+echo "  Upload beide zips naar GitHub Releases."
 echo "  Gebruikers: download → unzip → dubbelklik."
 echo "  (Eerste keer: rechtermuisknop → Openen)"
 echo ""

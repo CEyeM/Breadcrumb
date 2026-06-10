@@ -16,18 +16,48 @@ function loadConfig() {
 }
 
 const config = loadConfig()
-const ATEM_IP = process.argv[2] || config?.ip
-const BRIDGE_NAME = process.argv[3] || config?.name || 'default'
+let ATEM_IP = process.argv[2] || config?.ip
+let BRIDGE_NAME = process.argv[3] || config?.name
 
-if (!ATEM_IP) {
-  console.error('Geen ATEM IP geconfigureerd. Open de Breadcrumb Bridge app opnieuw.')
-  process.exit(1)
+main()
+
+async function main() {
+  // Interactief (Windows .exe dubbelklik, of terminal): vraag IP en naam,
+  // met de vorige waarden als standaard. Op macOS regelt de launcher dit.
+  if (process.stdin.isTTY && !process.argv[2]) {
+    const readline = require('readline')
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    const ask = (q) => new Promise(res => rl.question(q, res))
+
+    console.log('=== Breadcrumb Bridge ===\n')
+    const ipAnswer = await ask(`ATEM IP-adres${ATEM_IP ? ` [${ATEM_IP}]` : ''}: `)
+    ATEM_IP = ipAnswer.trim() || ATEM_IP
+    const nameAnswer = await ask(`Bridge naam${BRIDGE_NAME ? ` [${BRIDGE_NAME}]` : ' (bijv. jeffrey-studio)'}: `)
+    BRIDGE_NAME = nameAnswer.trim() || BRIDGE_NAME
+    rl.close()
+
+    if (ATEM_IP && BRIDGE_NAME) {
+      fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true })
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify({ ip: ATEM_IP, name: BRIDGE_NAME }) + '\n')
+    }
+  }
+
+  if (!ATEM_IP) {
+    console.error('Geen ATEM IP geconfigureerd. Open de Breadcrumb Bridge app opnieuw.')
+    process.exit(1)
+  }
+  if (!BRIDGE_NAME) BRIDGE_NAME = 'default'
+
+  startBridge()
 }
 
+function startBridge() {
 const CHANNEL_NAME = `atem-tc-${BRIDGE_NAME}`
 console.log(`[bridge] IP=${ATEM_IP}  kanaal=${CHANNEL_NAME}`)
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+// ws meegeven: de ingebakken Node runtime heeft geen native WebSocket
+const ws = require('ws')
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { realtime: { transport: ws } })
 const rtChannel = supabase.channel(CHANNEL_NAME, { config: { broadcast: { self: false } } })
 
 rtChannel.subscribe((status) => {
@@ -60,6 +90,7 @@ atem.on('error', e => console.error('[atem] Fout:', e))
 
 console.log(`[atem] Verbinden met ${ATEM_IP}...`)
 atem.connect(ATEM_IP)
+}
 
 function formatTC(tc) {
   const pad = n => String(n).padStart(2, '0')

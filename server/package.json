@@ -10,7 +10,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "atem-connection": "^3.4.2",
-    "dotenv": "^16.0.0"
+    "dotenv": "^16.0.0",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "pkg": "^5.8.1"
