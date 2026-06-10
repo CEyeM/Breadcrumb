@@ -5,12 +5,25 @@ const { Atem } = require('atem-connection')
 const { createClient } = require('@supabase/supabase-js')
 
 // ATEM IP als argument: node atem-bridge.js 192.168.1.100
-const ATEM_IP = process.argv[2]
+const fs = require('fs')
+const path = require('path')
+
+// IP via argument of via opgeslagen config
+let ATEM_IP = process.argv[2]
 if (!ATEM_IP) {
-  console.error('Gebruik: node atem-bridge.js <ATEM-IP>')
-  console.error('Voorbeeld: node atem-bridge.js 192.168.1.100')
-  process.exit(1)
+  const configFile = path.join(__dirname, '.atem-ip')
+  if (fs.existsSync(configFile)) {
+    ATEM_IP = fs.readFileSync(configFile, 'utf8').trim()
+    console.log(`[config] ATEM IP geladen: ${ATEM_IP}`)
+  } else {
+    console.error('Gebruik: node atem-bridge.js <ATEM-IP>')
+    console.error('Voorbeeld: node atem-bridge.js 192.168.50.2')
+    process.exit(1)
+  }
 }
+
+// Sla IP op voor auto-start
+fs.writeFileSync(path.join(__dirname, '.atem-ip'), ATEM_IP)
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY
