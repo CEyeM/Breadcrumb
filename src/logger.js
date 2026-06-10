@@ -149,13 +149,9 @@ export async function renderLogger(sessionId, user) {
     <div class="modal-overlay" id="atem-modal" style="display:none">
       <div class="modal">
         <h2>ATEM LIVE BRIDGE</h2>
-        <p>Vul het IP-adres van je ATEM in. De bridge-naam is uniek per gebruiker zodat meerdere mensen tegelijk kunnen werken.</p>
+        <p>Vul de bridge-naam in die je in de Breadcrumb Bridge app hebt gekozen. Het ATEM IP-adres stel je in de bridge app zelf in.</p>
         <div class="field">
-          <label>ATEM IP-adres</label>
-          <input type="text" id="atem-ip" placeholder="192.168.1.100" />
-        </div>
-        <div class="field">
-          <label>Bridge naam <span style="font-size:10px;opacity:0.5">(uniek per gebruiker)</span></label>
+          <label>Bridge naam <span style="font-size:10px;opacity:0.5">(zelfde als in de bridge app)</span></label>
           <input type="text" id="atem-bridge-name" placeholder="bijv. jeffrey-studio" />
         </div>
         <button class="btn btn-primary" id="atem-connect-btn" onclick="connectAtem()" style="width:100%;justify-content:center">
@@ -235,12 +231,12 @@ export async function renderLogger(sessionId, user) {
 
   window.openAtemBridge = () => {
     document.getElementById('atem-modal').style.display = 'flex'
-    const savedIp = localStorage.getItem('atem-ip')
     const savedName = localStorage.getItem('atem-bridge-name')
-    if (savedIp) document.getElementById('atem-ip').value = savedIp
-    if (savedName) document.getElementById('atem-bridge-name').value = savedName
-    if (savedIp && savedName) showAtemCommand(savedIp, savedName)
-    document.getElementById('atem-ip').focus()
+    if (savedName) {
+      document.getElementById('atem-bridge-name').value = savedName
+      showAtemInfo()
+    }
+    document.getElementById('atem-bridge-name').focus()
   }
 
   window.closeAtemBridge = () => {
@@ -248,19 +244,17 @@ export async function renderLogger(sessionId, user) {
   }
 
   window.connectAtem = () => {
-    const ip = document.getElementById('atem-ip').value.trim()
     const name = document.getElementById('atem-bridge-name').value.trim()
-    if (!ip || !name) return
-    localStorage.setItem('atem-ip', ip)
+    if (!name) return
     localStorage.setItem('atem-bridge-name', name)
-    showAtemCommand(ip, name)
+    showAtemInfo()
     // Herstart kanaal met nieuwe bridge naam
     supabase.removeChannel(atemChannel)
     atemChannel = createAtemChannel(name)
     window.setTcMode('atem-live')
   }
 
-  function showAtemCommand(ip, name) {
+  function showAtemInfo() {
     document.getElementById('atem-command-block').style.display = 'block'
     document.getElementById('atem-connect-btn').textContent = 'Opnieuw verbinden'
   }
@@ -517,8 +511,8 @@ export async function renderLogger(sessionId, user) {
   // ── Cleanup on navigate away ──────────────────────────────────────
   const atemDotInterval = setInterval(updateAtemDot, 500)
 
-  // Enter key in ATEM IP veld
-  document.getElementById('atem-ip')?.addEventListener('keydown', e => {
+  // Enter key in bridge naam veld
+  document.getElementById('atem-bridge-name')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') window.connectAtem()
   })
 
