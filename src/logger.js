@@ -465,10 +465,9 @@ export async function renderLogger(sessionId, user) {
       ['Operator', session.operator || '—'],
       ['Datum', new Date().toLocaleDateString('nl-NL')],
       [],
-      ['Timecode', 'Verstreken (s)', 'Notitie', 'Tijdstip'],
+      ['Timecode', 'Notitie', 'Tijdstip'],
       ...entries.map(e => [
         e.timecode,
-        e.elapsed_s,
         e.note,
         new Date(e.wall_time).toLocaleTimeString('nl-NL')
       ])
