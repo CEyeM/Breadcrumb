@@ -15,7 +15,7 @@ async function route() {
     try {
       const { data } = await Promise.race([
         supabase.auth.getSession(),
-        new Promise(resolve => setTimeout(() => resolve({ data: { session: null } }), 1000))
+        new Promise(resolve => setTimeout(() => resolve({ data: { session: null } }), 2500))
       ])
       user = data?.session?.user ?? null
     } catch {

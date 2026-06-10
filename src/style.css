@@ -293,6 +293,20 @@ html::-webkit-scrollbar { display: none; }
   border-radius: 10px;
 }
 
+.card-action {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  line-height: 1;
+}
+.card-action:hover { color: var(--text); border-color: var(--muted); }
+.card-action-danger:hover { color: var(--red); border-color: var(--red); }
+
 .sessions-empty {
   text-align: center;
   padding: 64px 24px;

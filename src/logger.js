@@ -213,7 +213,7 @@ export async function renderLogger(sessionId, user) {
   // ── State ─────────────────────────────────────────────────────────
   const tc = new TimecodeEngine()
   tc.fps = session.fps
-  tc.startSession(new Date(session.created_at).getTime())
+  tc.startSession(new Date(session.timer_started_at ?? session.created_at).getTime())
 
   window.camera = new CameraManager({
     onStatus: (s) => {
@@ -238,8 +238,15 @@ export async function renderLogger(sessionId, user) {
   tick()
 
   // ── TC mode ───────────────────────────────────────────────────────
-  window.resetTimer = () => {
-    tc.startSession(Date.now())
+  window.resetTimer = async () => {
+    const startedAt = new Date()
+    tc.startSession(startedAt.getTime())
+    // Sync naar andere apparaten via de database
+    const { error } = await supabase
+      .from('sessions')
+      .update({ timer_started_at: startedAt.toISOString() })
+      .eq('id', sessionId)
+    if (error) console.error('Reset sync error:', error)
   }
 
   window.setTcMode = (mode) => {
@@ -356,10 +363,16 @@ export async function renderLogger(sessionId, user) {
   })
 
   // ── FPS cycle ─────────────────────────────────────────────────────
-  window.cycleFps = () => {
+  window.cycleFps = async () => {
     const idx = FPS_OPTIONS.indexOf(tc.fps)
     tc.fps = FPS_OPTIONS[(idx + 1) % FPS_OPTIONS.length]
     document.getElementById('fps-label').textContent = tc.fps + ' fps'
+    // Opslaan zodat de keuze blijft staan na verversen, en synct naar andere apparaten
+    const { error } = await supabase
+      .from('sessions')
+      .update({ fps: tc.fps })
+      .eq('id', sessionId)
+    if (error) console.error('FPS sync error:', error)
   }
 
   // ── Logging ───────────────────────────────────────────────────────
@@ -540,6 +553,20 @@ export async function renderLogger(sessionId, user) {
         `
       }
       updateExportBtns()
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'sessions'
+    }, ({ new: s }) => {
+      if (s.id !== sessionId) return
+      // Timer-reset of fps-wijziging van een ander apparaat overnemen
+      if (s.timer_started_at) tc.startSession(new Date(s.timer_started_at).getTime())
+      if (s.fps && s.fps !== tc.fps) {
+        tc.fps = s.fps
+        const lbl = document.getElementById('fps-label')
+        if (lbl) lbl.textContent = s.fps + ' fps'
+      }
     })
     .subscribe((status) => {
       const connected = status === 'SUBSCRIBED'

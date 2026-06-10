@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   name        TEXT NOT NULL,
   operator    TEXT NOT NULL DEFAULT '',
   fps         INT  NOT NULL DEFAULT 25,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  timer_started_at TIMESTAMPTZ
 );
 
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;

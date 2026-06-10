@@ -86,6 +86,25 @@ export async function renderSessions(user) {
     location.hash = `#/session/${data.id}`
   }
 
+  window.renameSession = async (ev, id) => {
+    ev.stopPropagation()
+    const s = _sessions.find(x => x.id === id)
+    const name = prompt('Nieuwe naam voor de sessie:', s?.name ?? '')
+    if (!name || !name.trim() || name.trim() === s?.name) return
+    const { error } = await supabase.from('sessions').update({ name: name.trim() }).eq('id', id)
+    if (error) { alert('Hernoemen mislukt: ' + error.message); return }
+    await loadSessions(user.id)
+  }
+
+  window.deleteSession = async (ev, id) => {
+    ev.stopPropagation()
+    const s = _sessions.find(x => x.id === id)
+    if (!confirm(`Sessie "${s?.name ?? ''}" en alle bijbehorende notities verwijderen?`)) return
+    const { error } = await supabase.from('sessions').delete().eq('id', id)
+    if (error) { alert('Verwijderen mislukt: ' + error.message); return }
+    await loadSessions(user.id)
+  }
+
   // Enter key in modal
   setTimeout(() => {
     document.getElementById('new-session-name')?.addEventListener('keydown', e => {
@@ -99,6 +118,8 @@ export async function renderSessions(user) {
   await loadSessions(user.id)
 }
 
+let _sessions = []
+
 async function loadSessions(userId) {
   const { data: sessions, error } = await supabase
     .from('sessions')
@@ -108,6 +129,8 @@ async function loadSessions(userId) {
 
   const list = document.getElementById('sessions-list')
   if (!list) return
+
+  _sessions = sessions ?? []
 
   if (error || !sessions?.length) {
     list.innerHTML = `
@@ -137,6 +160,8 @@ async function loadSessions(userId) {
         </div>
         <div class="session-card-right">
           <span class="entry-badge">${count} notities</span>
+          <button class="card-action" onclick="renameSession(event, '${s.id}')" title="Hernoem sessie">✎</button>
+          <button class="card-action card-action-danger" onclick="deleteSession(event, '${s.id}')" title="Verwijder sessie">×</button>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
         </div>
       </div>
