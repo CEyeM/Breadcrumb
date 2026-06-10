@@ -160,32 +160,39 @@ export async function renderLogger(sessionId, user) {
 
         <div id="atem-command-block" style="display:none;margin-top:20px">
           <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
-            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Bridge op je Mac</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Bridge op je computer</div>
             <button onclick="startBridge()"
                style="display:inline-block;background:var(--accent);color:#000;font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 16px;border-radius:6px;border:none;cursor:pointer;letter-spacing:0.04em">
               ▶ Start Bridge
             </button>
-            <div id="bridge-download-hint" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-              <p style="font-family:var(--mono);font-size:11px;color:var(--text);margin:0 0 10px">
-                Nog geen bridge geïnstalleerd? Download hem hier:
-              </p>
-              <div style="display:flex;gap:8px">
-                <a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-arm64.zip"
-                   onclick="showBridgeOsHint('mac')"
-                   style="flex:1;text-align:center;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 12px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
-                   Mac
-                </a>
-                <a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-windows.zip"
-                   onclick="showBridgeOsHint('win')"
-                   style="flex:1;text-align:center;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 12px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
-                  ⊞ Windows
-                </a>
-              </div>
-              <div id="bridge-os-hint-mac" style="display:none;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
-                Unzip → sleep naar Programma's → eerste keer: rechtermuisknop → Open
-              </div>
-              <div id="bridge-os-hint-win" style="display:none;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
-                Unzip → dubbelklik Breadcrumb Bridge.exe → vul IP en naam in het venster in
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+              <button onclick="toggleBridgeHelp()" id="bridge-help-btn"
+                 style="background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;padding:8px 16px;border-radius:6px;cursor:pointer;letter-spacing:0.04em">
+                ? Installatie-uitleg
+              </button>
+
+              <div id="bridge-help" style="display:none;margin-top:12px">
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                  <button id="bridge-os-mac" onclick="selectBridgeOs('mac')"
+                     style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 12px;border-radius:6px;cursor:pointer;letter-spacing:0.04em">
+                     Mac
+                  </button>
+                  <button id="bridge-os-win" onclick="selectBridgeOs('win')"
+                     style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 12px;border-radius:6px;cursor:pointer;letter-spacing:0.04em">
+                    ⊞ Windows
+                  </button>
+                </div>
+                <ol id="bridge-os-hint-mac" style="display:none;margin:0;padding-left:18px;font-family:var(--mono);font-size:11px;color:var(--text);line-height:2">
+                  <li><a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-arm64.zip" style="color:var(--accent)">↓ Download de bridge voor Mac</a></li>
+                  <li>Unzip en sleep de app naar Programma's</li>
+                  <li>Eerste keer: rechtermuisknop → Open</li>
+                  <li>Vul je ATEM IP en bridge naam in</li>
+                </ol>
+                <ol id="bridge-os-hint-win" style="display:none;margin:0;padding-left:18px;font-family:var(--mono);font-size:11px;color:var(--text);line-height:2">
+                  <li><a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-windows.zip" style="color:var(--accent)">↓ Download de bridge voor Windows</a></li>
+                  <li>Unzip en dubbelklik Breadcrumb Bridge.exe</li>
+                  <li>Vul in het venster je ATEM IP en bridge naam in</li>
+                </ol>
               </div>
             </div>
           </div>
@@ -276,23 +283,35 @@ export async function renderLogger(sessionId, user) {
   function showAtemInfo() {
     document.getElementById('atem-command-block').style.display = 'block'
     document.getElementById('atem-connect-btn').textContent = 'Opnieuw verbinden'
-    // Toon de instructies voor het eigen systeem alvast
-    window.showBridgeOsHint(isMac ? 'mac' : 'win')
   }
 
   window.startBridge = () => {
     if (!isMac) {
-      // Windows: geen URL scheme — gebruiker start de .exe handmatig
-      window.showBridgeOsHint('win')
+      // Windows: geen URL scheme — toon de uitleg om de .exe te starten
+      document.getElementById('bridge-help').style.display = 'block'
+      window.selectBridgeOs('win')
       return
     }
     // Open de bridge app via het breadcrumb:// URL scheme
     location.href = 'breadcrumb://start'
   }
 
-  window.showBridgeOsHint = (os) => {
-    document.getElementById('bridge-os-hint-mac').style.display = os === 'mac' ? 'block' : 'none'
-    document.getElementById('bridge-os-hint-win').style.display = os === 'win' ? 'block' : 'none'
+  window.toggleBridgeHelp = () => {
+    const help = document.getElementById('bridge-help')
+    const isOpen = help.style.display !== 'none'
+    help.style.display = isOpen ? 'none' : 'block'
+    // Bij openen: instructies voor het eigen systeem voorselecteren
+    if (!isOpen) window.selectBridgeOs(isMac ? 'mac' : 'win')
+  }
+
+  window.selectBridgeOs = (os) => {
+    for (const o of ['mac', 'win']) {
+      const active = o === os
+      document.getElementById(`bridge-os-hint-${o}`).style.display = active ? 'block' : 'none'
+      const btn = document.getElementById(`bridge-os-${o}`)
+      btn.style.background = active ? 'var(--accent)' : 'var(--surface)'
+      btn.style.color = active ? '#000' : 'var(--text)'
+    }
   }
 
   function updateAtemDot() {
