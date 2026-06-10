@@ -6,10 +6,24 @@ CONFIG_FILE="$HOME/.config/breadcrumb/bridge.json"
 PID_FILE="/tmp/breadcrumb-bridge.pid"
 LOG_DIR="$HOME/Library/Logs/Breadcrumb"
 
-# Al actief?
+# Al actief? Vraag of de gebruiker wil herstarten met nieuwe instellingen
 if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  osascript -e 'display notification "Bridge is al actief" with title "Breadcrumb Bridge"'
-  exit 0
+  CHOICE=$(osascript -e 'button returned of (display dialog "De bridge is al actief. Wat wil je doen?" with title "Breadcrumb Bridge" buttons {"Stoppen", "Instellingen wijzigen", "Niets"} default button "Instellingen wijzigen")' 2>/dev/null)
+  case "$CHOICE" in
+    "Stoppen")
+      kill "$(cat "$PID_FILE")" 2>/dev/null
+      rm -f "$PID_FILE"
+      osascript -e 'display notification "Bridge gestopt" with title "Breadcrumb Bridge"'
+      exit 0
+      ;;
+    "Instellingen wijzigen")
+      kill "$(cat "$PID_FILE")" 2>/dev/null
+      rm -f "$PID_FILE"
+      ;;
+    *)
+      exit 0
+      ;;
+  esac
 fi
 
 # Config opvragen — altijd, zodat je makkelijk kunt wisselen van ATEM
