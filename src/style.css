@@ -437,7 +437,6 @@ header {
   flex-direction: column;
   justify-content: flex-end;
   overflow: hidden;
-  padding-top: 24px;
 }
 
 .camera-wrap {
