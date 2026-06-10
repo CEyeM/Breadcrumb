@@ -165,11 +165,16 @@ export async function renderLogger(sessionId, user) {
         <div id="atem-command-block" style="display:none;margin-top:20px">
           <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
             <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Bridge installeren op je Mac</div>
-            <ol style="margin:0;padding-left:18px;font-family:var(--mono);font-size:11px;color:var(--text);line-height:2">
-              <li>Download de <a href="https://github.com/CEyeM/Breadcrumb" target="_blank" style="color:var(--accent)">bridge software</a> (map: <code>server/</code>)</li>
-              <li>Dubbelklik <code>install-bridge.command</code></li>
-              <li>Klaar — de bridge start voortaan automatisch</li>
-            </ol>
+            <p style="font-family:var(--mono);font-size:11px;color:var(--text);margin:0 0 12px">
+              Download de app, dubbelklik hem, vul je ATEM IP in — klaar.
+            </p>
+            <a href="https://github.com/CEyeM/Breadcrumb/releases/latest" target="_blank"
+               style="display:inline-block;background:var(--accent);color:#000;font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
+              ↓ Download Breadcrumb Bridge
+            </a>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
+              Eerste keer openen: rechtermuisknop → Openen
+            </div>
           </div>
 
           <div style="display:flex;align-items:center;gap:8px;margin-top:14px">
