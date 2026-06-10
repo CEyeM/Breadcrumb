@@ -1,0 +1,14 @@
+{
+  "name": "livelog-atem-bridge",
+  "version": "1.0.0",
+  "description": "Lokale bridge: leest timecode van ATEM en pusht via Supabase Realtime",
+  "main": "atem-bridge.js",
+  "scripts": {
+    "start": "node atem-bridge.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "atem-connection": "^3.4.2",
+    "dotenv": "^16.0.0"
+  }
+}

@@ -1,0 +1,14 @@
+<svg width="280" height="64" viewBox="0 0 280 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Breadcrumb — Timecode Logger">
+  <g>
+    <line x1="6" y1="44" x2="50" y2="44" stroke="#2a2a2f" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="12" cy="44" r="2.5" fill="#6b6b78"/>
+    <circle cx="21" cy="44" r="3" fill="#8a7a3a"/>
+    <circle cx="30" cy="44" r="3.5" fill="#b89a3f"/>
+    <circle cx="39" cy="44" r="4" fill="#d4b445"/>
+    <circle cx="46" cy="20" r="6.5" fill="#e8c547"/>
+    <line x1="46" y1="26.5" x2="46" y2="40" stroke="#e8c547" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="46" cy="44" r="3" fill="#e8c547"/>
+  </g>
+  <text x="68" y="30" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="20" font-weight="500" letter-spacing="0.4" fill="#e8e8ec">Breadcrumb</text>
+  <text x="69" y="46" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="10" letter-spacing="3.2" fill="#6b6b78">TIMECODE LOGGER</text>
+</svg>
