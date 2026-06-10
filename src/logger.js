@@ -185,8 +185,8 @@ export async function renderLogger(sessionId, user) {
                 <ol id="bridge-os-hint-mac" style="display:none;margin:0;padding-left:18px;font-family:var(--mono);font-size:11px;color:var(--text);line-height:2">
                   <li><a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-arm64.zip" style="color:var(--accent)">↓ Download de bridge voor Mac</a></li>
                   <li>Unzip en sleep de app naar Programma's</li>
-                  <li>Eerste keer: rechtermuisknop → Open</li>
-                  <li>Vul je ATEM IP en bridge naam in</li>
+                  <li>Open de app en vul je ATEM IP en bridge naam in</li>
+                  <li style="color:var(--muted)">Waarschuwing van macOS? Rechtermuisknop → Open</li>
                 </ol>
                 <ol id="bridge-os-hint-win" style="display:none;margin:0;padding-left:18px;font-family:var(--mono);font-size:11px;color:var(--text);line-height:2">
                   <li><a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-windows.zip" style="color:var(--accent)">↓ Download de bridge voor Windows</a></li>
