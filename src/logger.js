@@ -492,9 +492,15 @@ export async function renderLogger(sessionId, user) {
     existingEntries.forEach(e => renderEntry(e))
   }
 
-  // ── Camera device list ────────────────────────────────────────────
-  camera.populateDevices()
+  // ── Camera device list ─────────────────────────────────────────────
+  // Vraag kort toestemming om device-labels te kunnen tonen, stop dan meteen
   if (navigator.mediaDevices) {
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(stream => {
+        stream.getTracks().forEach(t => t.stop())
+        return camera.populateDevices()
+      })
+      .catch(() => camera.populateDevices()) // geen toestemming: toon generieke namen
     navigator.mediaDevices.addEventListener('devicechange', () => camera.populateDevices())
   }
 
