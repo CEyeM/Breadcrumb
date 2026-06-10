@@ -17,13 +17,14 @@
 
 html, body {
   height: 100%;
-  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.5;
+  scrollbar-width: none;
 }
+html::-webkit-scrollbar { display: none; }
 
 #app { height: 100%; }
 
