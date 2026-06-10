@@ -169,12 +169,23 @@ export async function renderLogger(sessionId, user) {
               <p style="font-family:var(--mono);font-size:11px;color:var(--text);margin:0 0 10px">
                 Bridge niet gevonden — installeer hem eerst:
               </p>
-              <a href="https://github.com/CEyeM/Breadcrumb/releases/latest" target="_blank"
-                 style="display:inline-block;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
-                ↓ Download Breadcrumb Bridge
-              </a>
-              <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
+              <div style="display:flex;gap:8px">
+                <a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-arm64.zip"
+                   onclick="showBridgeOsHint('mac')"
+                   style="flex:1;text-align:center;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 12px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
+                   Mac
+                </a>
+                <a href="https://github.com/CEyeM/Breadcrumb/releases/latest/download/Breadcrumb-Bridge-windows.zip"
+                   onclick="showBridgeOsHint('win')"
+                   style="flex:1;text-align:center;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 12px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
+                  ⊞ Windows
+                </a>
+              </div>
+              <div id="bridge-os-hint-mac" style="display:none;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
                 Unzip → sleep naar Programma's → eerste keer: rechtermuisknop → Open
+              </div>
+              <div id="bridge-os-hint-win" style="display:none;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
+                Unzip → dubbelklik Breadcrumb Bridge.exe → vul IP en naam in het venster in
               </div>
             </div>
           </div>
@@ -265,15 +276,31 @@ export async function renderLogger(sessionId, user) {
     document.getElementById('atem-connect-btn').textContent = 'Opnieuw verbinden'
   }
 
+  const isMac = /Mac/i.test(navigator.platform || navigator.userAgent)
+
   window.startBridge = () => {
     const hint = document.getElementById('bridge-download-hint')
+    if (!isMac) {
+      // Windows: geen URL scheme — toon meteen de downloadkeuze
+      hint.style.display = 'block'
+      window.showBridgeOsHint('win')
+      return
+    }
     hint.style.display = 'none'
     // Open de bridge app via het breadcrumb:// URL scheme
     location.href = 'breadcrumb://start'
     // Houdt de pagina focus? Dan is de app niet geïnstalleerd → toon download
     setTimeout(() => {
-      if (document.hasFocus()) hint.style.display = 'block'
+      if (document.hasFocus()) {
+        hint.style.display = 'block'
+        window.showBridgeOsHint('mac')
+      }
     }, 1500)
+  }
+
+  window.showBridgeOsHint = (os) => {
+    document.getElementById('bridge-os-hint-mac').style.display = os === 'mac' ? 'block' : 'none'
+    document.getElementById('bridge-os-hint-win').style.display = os === 'win' ? 'block' : 'none'
   }
 
   function updateAtemDot() {
