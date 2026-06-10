@@ -8,22 +8,29 @@ const { createClient } = require('@supabase/supabase-js')
 const fs = require('fs')
 const path = require('path')
 
-// IP via argument of via opgeslagen config
+// IP en bridge naam via argumenten of via opgeslagen config
 let ATEM_IP = process.argv[2]
+let BRIDGE_NAME = process.argv[3]
+
 if (!ATEM_IP) {
   const configFile = path.join(__dirname, '.atem-ip')
   if (fs.existsSync(configFile)) {
-    ATEM_IP = fs.readFileSync(configFile, 'utf8').trim()
-    console.log(`[config] ATEM IP geladen: ${ATEM_IP}`)
+    const parts = fs.readFileSync(configFile, 'utf8').trim().split(' ')
+    ATEM_IP = parts[0]
+    if (!BRIDGE_NAME) BRIDGE_NAME = parts[1]
+    console.log(`[config] Geladen: IP=${ATEM_IP} naam=${BRIDGE_NAME || 'default'}`)
   } else {
-    console.error('Gebruik: node atem-bridge.js <ATEM-IP>')
-    console.error('Voorbeeld: node atem-bridge.js 192.168.50.2')
+    console.error('Gebruik: node atem-bridge.js <ATEM-IP> <bridge-naam>')
+    console.error('Voorbeeld: node atem-bridge.js 192.168.50.2 jeffrey-studio')
     process.exit(1)
   }
 }
 
-// Sla IP op voor auto-start
-fs.writeFileSync(path.join(__dirname, '.atem-ip'), ATEM_IP)
+if (!BRIDGE_NAME) BRIDGE_NAME = 'default'
+const CHANNEL_NAME = `atem-tc-${BRIDGE_NAME}`
+
+// Sla IP + naam op voor auto-start
+fs.writeFileSync(path.join(__dirname, '.atem-ip'), `${ATEM_IP} ${BRIDGE_NAME}`)
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY
@@ -35,12 +42,12 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-const channel = supabase.channel('atem-tc', {
+const channel = supabase.channel(CHANNEL_NAME, {
   config: { broadcast: { self: false } }
 })
 
 channel.subscribe((status) => {
-  if (status === 'SUBSCRIBED') console.log('[supabase] Realtime channel actief')
+  if (status === 'SUBSCRIBED') console.log(`[supabase] Realtime channel actief: ${CHANNEL_NAME}`)
 })
 
 const atem = new Atem()
