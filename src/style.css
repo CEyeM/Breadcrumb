@@ -164,6 +164,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .field input::placeholder { color: var(--muted); }
 .field input.error { border-color: var(--red); }
+.input-row textarea.error { border-color: var(--red); }
 
 .auth-error {
   font-size: 12px;

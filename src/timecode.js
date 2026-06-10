@@ -23,8 +23,8 @@ export function parseTCtoMs(tc, fps) {
 export class TimecodeEngine {
   constructor() {
     this.fps = 25
-    this.mode = 'session'   // 'session' | 'tod' | 'atem' | 'atem-live'
-    this.sessionStart = null
+    this.mode = 'session'   // 'session' | 'tod' | 'atem-live'
+    this.sessionStartWall = null
     this.todOffsetMs = 0
     this.atemLiveRef = null // { tcMs, receivedAt } — voor geëxtrapoleerde ATEM TC
   }

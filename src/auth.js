@@ -36,7 +36,9 @@ export function renderAuth() {
     document.getElementById('tab-register').classList.toggle('active', tab === 'register')
     document.getElementById('auth-submit').textContent = tab === 'login' ? 'Inloggen' : 'Account aanmaken'
     window._authTab = tab
-    document.getElementById('auth-error').textContent = ''
+    const errEl = document.getElementById('auth-error')
+    errEl.textContent = ''
+    errEl.style.color = ''
   }
 
   window._authTab = 'login'
@@ -64,11 +66,21 @@ export function renderAuth() {
     }
 
     if (result.error) {
+      errEl.style.color = ''
       errEl.textContent = translateError(result.error.message)
       btn.disabled = false
       btn.textContent = window._authTab === 'login' ? 'Inloggen' : 'Account aanmaken'
+      return
     }
-    // onAuthStateChange in main.js handelt de redirect af
+
+    // Signup gelukt maar geen sessie: e-mailbevestiging staat aan
+    if (window._authTab === 'register' && result.data?.user && !result.data?.session) {
+      errEl.style.color = 'var(--green, #4ade80)'
+      errEl.textContent = 'Account aangemaakt! Check je inbox om je e-mailadres te bevestigen.'
+      btn.disabled = false
+      btn.textContent = 'Account aanmaken'
+    }
+    // Anders: onAuthStateChange in main.js handelt de redirect af
   }
 
   // Enter key

@@ -380,6 +380,8 @@ export async function renderLogger(sessionId, user) {
 
     if (error) {
       console.error('Log error:', error)
+      input.classList.add('error')
+      setTimeout(() => input.classList.remove('error'), 2000)
       return
     }
 
@@ -446,7 +448,19 @@ export async function renderLogger(sessionId, user) {
   window.clearLog = async () => {
     if (!entries.length) return
     if (!confirm('Alle notities wissen?')) return
-    await supabase.from('log_entries').delete().eq('session_id', sessionId)
+    const { error } = await supabase.from('log_entries').delete().eq('session_id', sessionId)
+    if (error) { console.error('Clear error:', error); return }
+
+    // Direct de UI legen — Realtime is alleen voor andere apparaten
+    entries = []
+    document.getElementById('log-entries').innerHTML = `
+      <div class="log-empty" id="log-empty">
+        <div style="font-size:22px;opacity:0.3">◈</div>
+        <div>Nog geen notities</div>
+        <div style="opacity:0.5">Typ hieronder en druk Enter</div>
+      </div>`
+    document.getElementById('entry-count').textContent = '0'
+    updateExportBtns()
   }
 
   function updateExportBtns() {
