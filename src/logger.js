@@ -458,12 +458,24 @@ export async function renderLogger(sessionId, user) {
 
   // ── Export ────────────────────────────────────────────────────────
   window.exportCSV = () => {
-    const header = 'Timecode,Elapsed (s),Notitie,Tijdstip\n'
-    const rows = entries.map(e =>
-      `"${e.timecode}","${e.elapsed_s}","${e.note.replace(/"/g,'""')}","${e.wall_time}"`
-    ).join('\n')
-    const meta = `# Sessie: ${session.name}\n# Operator: ${session.operator}\n# Datum: ${new Date().toLocaleDateString('nl-NL')}\n\n`
-    download(meta + header + rows, `${slug(session.name)}-log.csv`, 'text/csv')
+    // Puntkomma als scheidingsteken: Excel/Numbers (NL) splitst dan correct
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const lines = [
+      ['Sessie', session.name],
+      ['Operator', session.operator || '—'],
+      ['Datum', new Date().toLocaleDateString('nl-NL')],
+      [],
+      ['Timecode', 'Verstreken (s)', 'Notitie', 'Tijdstip'],
+      ...entries.map(e => [
+        e.timecode,
+        e.elapsed_s,
+        e.note,
+        new Date(e.wall_time).toLocaleTimeString('nl-NL')
+      ])
+    ]
+    const csv = lines.map(row => row.map(esc).join(';')).join('\r\n')
+    // BOM zorgt dat Excel het bestand als UTF-8 opent
+    download('\uFEFF' + csv, `${slug(session.name)}-log.csv`, 'text/csv;charset=utf-8')
   }
 
   window.exportTXT = () => {
