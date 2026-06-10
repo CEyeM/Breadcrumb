@@ -53,6 +53,13 @@ cat > "$APP_DIR/Contents/Info.plist" << 'PLIST'
   <key>CFBundleExecutable</key>    <string>Breadcrumb Bridge</string>
   <key>LSUIElement</key>           <true/>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>   <string>Breadcrumb Bridge</string>
+      <key>CFBundleURLSchemes</key><array><string>breadcrumb</string></array>
+    </dict>
+  </array>
 </dict>
 </plist>
 PLIST

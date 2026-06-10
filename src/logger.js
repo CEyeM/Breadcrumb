@@ -160,16 +160,22 @@ export async function renderLogger(sessionId, user) {
 
         <div id="atem-command-block" style="display:none;margin-top:20px">
           <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
-            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Bridge installeren op je Mac</div>
-            <p style="font-family:var(--mono);font-size:11px;color:var(--text);margin:0 0 12px">
-              Download de app, dubbelklik hem, vul je ATEM IP in — klaar.
-            </p>
-            <a href="https://github.com/CEyeM/Breadcrumb/releases/latest" target="_blank"
-               style="display:inline-block;background:var(--accent);color:#000;font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
-              ↓ Download Breadcrumb Bridge
-            </a>
-            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
-              Eerste keer openen: rechtermuisknop → Openen
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Bridge op je Mac</div>
+            <button onclick="startBridge()"
+               style="display:inline-block;background:var(--accent);color:#000;font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 16px;border-radius:6px;border:none;cursor:pointer;letter-spacing:0.04em">
+              ▶ Start Bridge
+            </button>
+            <div id="bridge-download-hint" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+              <p style="font-family:var(--mono);font-size:11px;color:var(--text);margin:0 0 10px">
+                Bridge niet gevonden — installeer hem eerst:
+              </p>
+              <a href="https://github.com/CEyeM/Breadcrumb/releases/latest" target="_blank"
+                 style="display:inline-block;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;letter-spacing:0.04em">
+                ↓ Download Breadcrumb Bridge
+              </a>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
+                Unzip → sleep naar Programma's → eerste keer: rechtermuisknop → Open
+              </div>
             </div>
           </div>
 
@@ -257,6 +263,17 @@ export async function renderLogger(sessionId, user) {
   function showAtemInfo() {
     document.getElementById('atem-command-block').style.display = 'block'
     document.getElementById('atem-connect-btn').textContent = 'Opnieuw verbinden'
+  }
+
+  window.startBridge = () => {
+    const hint = document.getElementById('bridge-download-hint')
+    hint.style.display = 'none'
+    // Open de bridge app via het breadcrumb:// URL scheme
+    location.href = 'breadcrumb://start'
+    // Houdt de pagina focus? Dan is de app niet geïnstalleerd → toon download
+    setTimeout(() => {
+      if (document.hasFocus()) hint.style.display = 'block'
+    }, 1500)
   }
 
   function updateAtemDot() {
