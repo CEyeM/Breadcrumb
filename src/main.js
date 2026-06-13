@@ -5,6 +5,7 @@ import { renderSessions } from './sessions.js'
 import { renderLogger } from './logger.js'
 
 let _activeSessionId = null
+let _routing = false
 
 function cleanup() {
   if (typeof window._loggerCleanup === 'function') {
@@ -15,6 +16,8 @@ function cleanup() {
 }
 
 async function route() {
+  if (_routing) return
+  _routing = true
   try {
     let user = null
     try {
@@ -38,7 +41,6 @@ async function route() {
     if (hash.startsWith('#/session/')) {
       const sessionId = hash.split('/')[2]
       if (sessionId) {
-        // Al op dezelfde sessie-pagina: niet opnieuw renderen
         if (_activeSessionId === sessionId && document.querySelector('.logger-screen')) {
           return
         }
@@ -60,27 +62,25 @@ async function route() {
         <button onclick="location.reload()" style="margin-top:8px;padding:8px 16px;background:#e8c547;color:#0e0e10;border:none;border-radius:6px;cursor:pointer;font-size:12px">Herladen</button>
       </div>
     `
+  } finally {
+    _routing = false
   }
 }
 
 supabase.auth.onAuthStateChange((event) => {
-  console.log('[Breadcrumb] auth event:', event, '| activeSession:', _activeSessionId, '| loggerInDOM:', !!document.querySelector('.logger-screen'))
   if (event === 'SIGNED_OUT') {
     cleanup()
     renderAuth()
     return
   }
-  if (!_activeSessionId && !document.querySelector('.logger-screen')) {
+  // Route als er geen actieve werkende logger-pagina is
+  if (!_activeSessionId || !document.querySelector('.logger-screen')) {
     route()
   }
 })
 window.addEventListener('hashchange', () => {
-  console.log('[Breadcrumb] hashchange →', location.hash)
   cleanup()
   route()
-})
-document.addEventListener('visibilitychange', () => {
-  console.log('[Breadcrumb] visibilitychange →', document.visibilityState, '| activeSession:', _activeSessionId)
 })
 
 route()
