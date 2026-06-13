@@ -525,7 +525,7 @@ export async function renderLogger(sessionId, user) {
 
     const { error } = await supabase
       .from('log_entries')
-      .upsert(entryData, { onConflict: 'id', ignoreDuplicates: true })
+      .insert(entryData)
 
     if (error) {
       console.error('[log] Opslaan mislukt:', error, entryData)
