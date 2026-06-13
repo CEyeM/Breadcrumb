@@ -782,9 +782,47 @@ header {
 
 /* ── RESPONSIVE ── */
 @media (max-width: 700px) {
+  /* Voorkom dat iOS automatisch inzoomt bij focus: lettergrootte >= 16px */
+  .field input,
+  #note-input,
+  #cam-select,
+  #sync-tc,
+  #atem-bridge-name,
+  .modal input,
+  .modal select {
+    font-size: 16px;
+  }
+
+  /* Header compacter: terug+logo en indicators op één rij, klok eronder */
+  header {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 10px 12px;
+  }
+  header > div:first-child { order: 1; }
+  header > div:last-child  { order: 2; }
+  .clock-block { order: 3; width: 100%; }
+  .master-clock { font-size: 18px; }
+  .tc-mode-row { flex-wrap: wrap; justify-content: center; }
+  .tc-mode-btn { padding: 4px 10px; }
+
+  /* Camera bovenaan en compact, notities daaronder met alle ruimte */
   .logger-main {
     grid-template-columns: 1fr;
-    grid-template-rows: 260px 1fr auto;
+    grid-template-rows: auto 1fr;
   }
-  .camera-panel { border-right: none; border-bottom: 1px solid var(--border); }
+  .camera-panel {
+    order: 1;
+    border-left: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .log-panel { order: 2; }
+  .camera-wrap { max-height: 32vh; }
+
+  /* Camera- en log-knoppen mogen afbreken naar een nieuwe regel */
+  .cam-controls { flex-wrap: wrap; gap: 8px 10px; }
+  .log-header   { flex-wrap: wrap; gap: 8px; }
+
+  /* Verwijderknop altijd zichtbaar — touch heeft geen hover */
+  .entry-delete { opacity: 0.6; padding: 4px 8px; font-size: 18px; }
 }
