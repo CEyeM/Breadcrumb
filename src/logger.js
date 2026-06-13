@@ -602,6 +602,7 @@ export async function renderLogger(sessionId, user) {
 
   // ── Camera device list ─────────────────────────────────────────────
   // Vraag kort toestemming om device-labels te kunnen tonen, stop dan meteen
+  let onDeviceChange = null
   if (navigator.mediaDevices) {
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
       .then(stream => {
@@ -609,7 +610,8 @@ export async function renderLogger(sessionId, user) {
         return camera.populateDevices()
       })
       .catch(() => camera.populateDevices()) // geen toestemming: toon generieke namen
-    navigator.mediaDevices.addEventListener('devicechange', () => camera.populateDevices())
+    onDeviceChange = () => camera.populateDevices()
+    navigator.mediaDevices.addEventListener('devicechange', onDeviceChange)
   }
 
   // ── Focus ─────────────────────────────────────────────────────────
@@ -627,6 +629,7 @@ export async function renderLogger(sessionId, user) {
     cancelAnimationFrame(rafId)
     clearInterval(atemDotInterval)
     camera.stop()
+    if (onDeviceChange) navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
     supabase.removeChannel(channel)
     supabase.removeChannel(atemChannel)
   }
@@ -639,12 +642,15 @@ function escHtml(s) {
 
 function download(content, filename, type) {
   const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
+  a.href = url
   a.download = filename
   a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function slug(s) {
-  return s.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')
+  const base = s.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')
+  return base || 'sessie'
 }
