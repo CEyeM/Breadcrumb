@@ -250,6 +250,7 @@ export async function renderLogger(sessionId, user) {
 
   window.setTcMode = (mode) => {
     tc.setMode(mode)
+    sessionStorage.setItem(`tc-mode-${sessionId}`, mode)
     ;['session','tod','atem-live'].forEach(m => {
       document.getElementById(`mode-${m}`)?.classList.toggle('active', m === mode)
     })
@@ -604,6 +605,12 @@ export async function renderLogger(sessionId, user) {
     existingEntries.forEach(e => renderEntry(e))
   }
 
+  // ── Restore TC mode ───────────────────────────────────────────────
+  const savedMode = sessionStorage.getItem(`tc-mode-${sessionId}`)
+  if (savedMode && savedMode !== 'session') {
+    window.setTcMode(savedMode)
+  }
+
   // ── Camera device list ─────────────────────────────────────────────
   // Vraag kort toestemming om device-labels te kunnen tonen, stop dan meteen
   let onDeviceChange = null
@@ -636,6 +643,7 @@ export async function renderLogger(sessionId, user) {
     if (onDeviceChange) navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
     supabase.removeChannel(channel)
     supabase.removeChannel(atemChannel)
+    sessionStorage.removeItem(`tc-mode-${sessionId}`)
   }
 }
 
