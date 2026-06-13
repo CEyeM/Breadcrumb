@@ -1,6 +1,10 @@
 import { supabase } from './supabase.js'
 import { TimecodeEngine, FPS_OPTIONS, parseTCtoMs } from './timecode.js'
 import { CameraManager } from './camera.js'
+import {
+  bufferEntry, markSynced, removePending, clearPendingBuffer,
+  getUnsynced, syncPending, showToast, safeSupabaseCall
+} from './offline.js'
 
 export async function renderLogger(sessionId, user) {
   // ── Load session ──────────────────────────────────────────────────
@@ -54,6 +58,7 @@ export async function renderLogger(sessionId, user) {
             <div class="rec-dot active" id="rec-dot"></div>
             <span>REC</span>
           </div>
+          <button class="btn btn-ghost btn-sm" onclick="openShortcuts()" title="Toetsenbord shortcuts (?)">?</button>
         </div>
       </header>
 
@@ -102,6 +107,8 @@ export async function renderLogger(sessionId, user) {
               <button class="btn btn-danger btn-sm" onclick="clearLog()" id="clear-btn" disabled>Wis</button>
             </div>
           </div>
+
+          <div id="pending-banner" style="display:none"></div>
 
           <div id="log-entries">
             <div class="log-empty" id="log-empty">
@@ -207,6 +214,28 @@ export async function renderLogger(sessionId, user) {
         </div>
       </div>
     </div>
+
+    <!-- SHORTCUTS MODAL -->
+    <div class="modal-overlay" id="shortcuts-modal" style="display:none">
+      <div class="modal">
+        <h2>TOETSENBORD SHORTCUTS</h2>
+        <div class="shortcuts-grid">
+          <span class="shortcuts-key">Spatie</span>
+          <span class="shortcuts-desc">Focus notitie-invoer</span>
+          <span class="shortcuts-key">Enter</span>
+          <span class="shortcuts-desc">Notitie opslaan</span>
+          <span class="shortcuts-key">Shift+Enter</span>
+          <span class="shortcuts-desc">Nieuwe regel in notitie</span>
+          <span class="shortcuts-key">Escape</span>
+          <span class="shortcuts-desc">Sluit venster / annuleer</span>
+          <span class="shortcuts-key">?</span>
+          <span class="shortcuts-desc">Toon dit scherm</span>
+        </div>
+        <div class="modal-footer" style="margin-top:20px">
+          <button class="btn btn-ghost" onclick="closeShortcuts()" style="flex:1">Sluiten</button>
+        </div>
+      </div>
+    </div>
   `
 
   // ── State ─────────────────────────────────────────────────────────
@@ -226,6 +255,7 @@ export async function renderLogger(sessionId, user) {
 
   let entries = []
   let rafId = null
+  let bridgeStatus = null
 
   // ── Clock loop ────────────────────────────────────────────────────
   function tick() {
@@ -240,7 +270,6 @@ export async function renderLogger(sessionId, user) {
   window.resetTimer = async () => {
     const startedAt = new Date()
     tc.startSession(startedAt.getTime())
-    // Sync naar andere apparaten via de database
     const { error } = await supabase
       .from('sessions')
       .update({ timer_started_at: startedAt.toISOString() })
@@ -256,7 +285,6 @@ export async function renderLogger(sessionId, user) {
     })
   }
 
-  // SYNC: schakel naar time-of-day modus en open meteen het sync-venster
   window.activateSync = () => {
     window.setTcMode('tod')
     window.openSync()
@@ -284,7 +312,6 @@ export async function renderLogger(sessionId, user) {
     if (!name) return
     localStorage.setItem('atem-bridge-name', name)
     showAtemInfo()
-    // Herstart kanaal met nieuwe bridge naam
     supabase.removeChannel(atemChannel)
     atemChannel = createAtemChannel(name)
     window.setTcMode('atem-live')
@@ -299,12 +326,10 @@ export async function renderLogger(sessionId, user) {
 
   window.startBridge = () => {
     if (!isMac) {
-      // Windows: geen URL scheme — toon de uitleg om de .exe te starten
       document.getElementById('bridge-help').style.display = 'block'
       window.selectBridgeOs('win')
       return
     }
-    // Open de bridge app via het breadcrumb:// URL scheme
     location.href = 'breadcrumb://start'
   }
 
@@ -312,7 +337,6 @@ export async function renderLogger(sessionId, user) {
     const help = document.getElementById('bridge-help')
     const isOpen = help.style.display !== 'none'
     help.style.display = isOpen ? 'none' : 'block'
-    // Bij openen: instructies voor het eigen systeem voorselecteren
     if (!isOpen) window.selectBridgeOs(isMac ? 'mac' : 'win')
   }
 
@@ -328,15 +352,27 @@ export async function renderLogger(sessionId, user) {
 
   function updateAtemDot() {
     const age = Date.now() - lastAtemReceived
-    const connected = lastAtemReceived > 0 && age < 3000
+    const tcActive = lastAtemReceived > 0 && age < 3000
     const dot = document.getElementById('atem-dot')
     const modalDot = document.getElementById('atem-status-dot')
     const modalLabel = document.getElementById('atem-status-label')
-    if (dot) dot.style.background = connected ? 'var(--green)' : 'transparent'
-    if (modalDot) modalDot.classList.toggle('connected', connected)
-    if (modalLabel) modalLabel.textContent = connected
-      ? `Actief — TC ontvangen`
-      : lastAtemReceived > 0 ? 'Verbinding verbroken' : 'Wachten op bridge…'
+
+    let color, label
+    if (tcActive) {
+      color = 'var(--green)'; label = 'Actief — TC ontvangen'
+    } else if (bridgeStatus === 'reconnecting') {
+      color = '#f97316'; label = 'Bridge verbindt opnieuw…'
+    } else if (bridgeStatus === 'connected') {
+      color = 'var(--accent)'; label = 'Bridge verbonden — wacht op TC'
+    } else if (lastAtemReceived > 0) {
+      color = 'var(--red)'; label = 'Verbinding verbroken'
+    } else {
+      color = 'transparent'; label = 'Wachten op bridge…'
+    }
+
+    if (dot) dot.style.background = color
+    if (modalDot) modalDot.style.background = color
+    if (modalLabel) modalLabel.textContent = label
   }
 
   window.openSync = () => {
@@ -353,10 +389,7 @@ export async function renderLogger(sessionId, user) {
   window.applySync = () => {
     const raw = document.getElementById('sync-tc').value.trim()
     const ok = tc.syncTOD(raw)
-    if (!ok) {
-      document.getElementById('sync-tc').classList.add('error')
-      return
-    }
+    if (!ok) { document.getElementById('sync-tc').classList.add('error'); return }
     window.closeSync()
   }
 
@@ -367,17 +400,57 @@ export async function renderLogger(sessionId, user) {
     if (e.key === 'Enter') window.applySync()
   })
 
+  // ── Shortcuts modal ───────────────────────────────────────────────
+  window.openShortcuts = () => {
+    document.getElementById('shortcuts-modal').style.display = 'flex'
+  }
+  window.closeShortcuts = () => {
+    document.getElementById('shortcuts-modal').style.display = 'none'
+  }
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────
+  function handleGlobalKey(e) {
+    const tag = document.activeElement?.tagName
+    const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable
+
+    if (e.key === 'Escape') {
+      if (document.getElementById('sync-modal')?.style.display !== 'none') { window.closeSync(); return }
+      if (document.getElementById('atem-modal')?.style.display !== 'none') { window.closeAtemBridge(); return }
+      if (document.getElementById('shortcuts-modal')?.style.display !== 'none') { window.closeShortcuts(); return }
+      return
+    }
+
+    if (inInput) return
+
+    if (e.key === ' ' || e.code === 'Space') {
+      e.preventDefault()
+      document.getElementById('note-input')?.focus()
+    } else if (e.key === '?') {
+      window.openShortcuts()
+    }
+  }
+  window.addEventListener('keydown', handleGlobalKey)
+
   // ── FPS cycle ─────────────────────────────────────────────────────
   window.cycleFps = async () => {
     const idx = FPS_OPTIONS.indexOf(tc.fps)
     tc.fps = FPS_OPTIONS[(idx + 1) % FPS_OPTIONS.length]
     document.getElementById('fps-label').textContent = tc.fps + ' fps'
-    // Opslaan zodat de keuze blijft staan na verversen, en synct naar andere apparaten
     const { error } = await supabase
       .from('sessions')
       .update({ fps: tc.fps })
       .eq('id', sessionId)
     if (error) console.error('FPS sync error:', error)
+  }
+
+  // ── Pending banner ────────────────────────────────────────────────
+  function updatePendingBanner() {
+    const banner = document.getElementById('pending-banner')
+    if (!banner) return
+    const count = getUnsynced(sessionId).length
+    if (count === 0) { banner.style.display = 'none'; return }
+    banner.style.display = 'block'
+    banner.textContent = `${count} notitie${count !== 1 ? 's' : ''} niet gesynchroniseerd — wordt automatisch verzonden`
   }
 
   // ── Logging ───────────────────────────────────────────────────────
@@ -386,27 +459,34 @@ export async function renderLogger(sessionId, user) {
     const text = input.value.trim()
     if (!text) return
 
+    const id = crypto.randomUUID()
     const timecode = tc.getTC()
     const elapsed_s = parseFloat(tc.getElapsedSec().toFixed(3))
     const wall_time = new Date().toISOString()
+    const entryData = { id, session_id: sessionId, timecode, elapsed_s, note: text, wall_time }
 
-    const { data, error } = await supabase
+    // Schrijf naar localStorage vóór netwerkoproep
+    bufferEntry(sessionId, { ...entryData, localId: id, synced: false })
+
+    // Optimistic UI: toon direct, markeer als pending
+    input.value = ''
+    autoResize(input)
+    renderEntry({ ...entryData, pending: true })
+    updatePendingBanner()
+
+    const { error } = await supabase
       .from('log_entries')
-      .insert({ session_id: sessionId, timecode, elapsed_s, note: text, wall_time })
-      .select()
-      .single()
+      .upsert(entryData, { onConflict: 'id', ignoreDuplicates: true })
 
     if (error) {
-      console.error('Log error:', error)
-      input.classList.add('error')
-      setTimeout(() => input.classList.remove('error'), 2000)
+      console.error('[log] Opslaan mislukt:', error, entryData)
+      showToast('Opslaan mislukt — wordt opnieuw geprobeerd', 'error')
       return
     }
 
-    // Direct tonen — Realtime is alleen voor andere apparaten
-    renderEntry(data)
-    input.value = ''
-    autoResize(input)
+    markSynced(sessionId, id)
+    document.querySelector(`.log-entry[data-id="${id}"]`)?.classList.remove('pending')
+    updatePendingBanner()
   }
 
   window.handleKey = (e) => {
@@ -426,7 +506,7 @@ export async function renderLogger(sessionId, user) {
     document.getElementById('log-empty')?.remove()
 
     const el = document.createElement('div')
-    el.className = 'log-entry'
+    el.className = `log-entry${entry.pending ? ' pending' : ''}`
     el.dataset.id = entry.id
     el.innerHTML = `
       <div class="entry-tc">${entry.timecode}</div>
@@ -446,8 +526,18 @@ export async function renderLogger(sessionId, user) {
 
   window.deleteEntry = async (id) => {
     if (!confirm('Notitie verwijderen?')) return
-    const { error } = await supabase.from('log_entries').delete().eq('id', id)
-    if (error) { console.error('Delete error:', error); return }
+
+    const isPending = document.querySelector(`.log-entry[data-id="${id}"]`)?.classList.contains('pending')
+    if (isPending) {
+      removePending(sessionId, id)
+    } else {
+      const { error } = await supabase.from('log_entries').delete().eq('id', id)
+      if (error) {
+        console.error('Delete error:', error)
+        showToast('Verwijderen mislukt', 'error')
+        return
+      }
+    }
 
     entries = entries.filter(e => e.id !== id)
     document.querySelector(`.log-entry[data-id="${id}"]`)?.remove()
@@ -461,15 +551,20 @@ export async function renderLogger(sessionId, user) {
         </div>`
     }
     updateExportBtns()
+    updatePendingBanner()
   }
 
   window.clearLog = async () => {
     if (!entries.length) return
     if (!confirm('Alle notities wissen?')) return
     const { error } = await supabase.from('log_entries').delete().eq('session_id', sessionId)
-    if (error) { console.error('Clear error:', error); return }
+    if (error) {
+      console.error('Clear error:', error)
+      showToast('Wissen mislukt', 'error')
+      return
+    }
 
-    // Direct de UI legen — Realtime is alleen voor andere apparaten
+    clearPendingBuffer(sessionId)
     entries = []
     document.getElementById('log-entries').innerHTML = `
       <div class="log-empty" id="log-empty">
@@ -479,6 +574,7 @@ export async function renderLogger(sessionId, user) {
       </div>`
     document.getElementById('entry-count').textContent = '0'
     updateExportBtns()
+    updatePendingBanner()
   }
 
   function updateExportBtns() {
@@ -490,7 +586,6 @@ export async function renderLogger(sessionId, user) {
 
   // ── Export ────────────────────────────────────────────────────────
   window.exportCSV = () => {
-    // Puntkomma als scheidingsteken: Excel/Numbers (NL) splitst dan correct
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
     const lines = [
       ['Sessie', session.name],
@@ -505,8 +600,7 @@ export async function renderLogger(sessionId, user) {
       ])
     ]
     const csv = lines.map(row => row.map(esc).join(';')).join('\r\n')
-    // BOM zorgt dat Excel het bestand als UTF-8 opent
-    download('\uFEFF' + csv, `${slug(session.name)}-log.csv`, 'text/csv;charset=utf-8')
+    download('﻿' + csv, `${slug(session.name)}-log.csv`, 'text/csv;charset=utf-8')
   }
 
   window.exportTXT = () => {
@@ -565,7 +659,6 @@ export async function renderLogger(sessionId, user) {
       table: 'sessions'
     }, ({ new: s }) => {
       if (s.id !== sessionId) return
-      // Timer-reset of fps-wijziging van een ander apparaat overnemen
       if (s.timer_started_at) tc.startSession(new Date(s.timer_started_at).getTime())
       if (s.fps && s.fps !== tc.fps) {
         tc.fps = s.fps
@@ -579,7 +672,7 @@ export async function renderLogger(sessionId, user) {
       rtLabel.textContent = connected ? 'LIVE' : 'SYNC'
     })
 
-  // ATEM Live TC broadcast — kanaal per bridge naam
+  // ── ATEM channel ──────────────────────────────────────────────────
   function createAtemChannel(name) {
     const channelName = name ? `atem-tc-${name}` : 'atem-tc'
     return supabase
@@ -587,6 +680,10 @@ export async function renderLogger(sessionId, user) {
       .on('broadcast', { event: 'timecode' }, ({ payload }) => {
         tc.receiveAtemTC(payload.tc, payload.ts)
         lastAtemReceived = Date.now()
+      })
+      .on('broadcast', { event: 'bridge-status' }, ({ payload }) => {
+        bridgeStatus = payload.status
+        updateAtemDot()
       })
       .subscribe()
   }
@@ -605,14 +702,47 @@ export async function renderLogger(sessionId, user) {
     existingEntries.forEach(e => renderEntry(e))
   }
 
-  // ── Restore TC mode ───────────────────────────────────────────────
-  const savedMode = sessionStorage.getItem(`tc-mode-${sessionId}`)
-  if (savedMode && savedMode !== 'session') {
-    window.setTcMode(savedMode)
+  // ── Offline: toon pending en probeer te synchen ───────────────────
+  const unsynced = getUnsynced(sessionId)
+  if (unsynced.length) {
+    // Voeg unsynced toe die nog niet in Supabase staan
+    const existingIds = new Set((existingEntries || []).map(e => e.id))
+    unsynced.forEach(e => {
+      if (!existingIds.has(e.id)) {
+        const { localId, synced: _s, ...display } = e
+        renderEntry({ ...display, pending: true })
+      }
+    })
+    updatePendingBanner()
+
+    // Probeer direct te synchen
+    syncPending(sessionId, supabase).then(count => {
+      if (count > 0) {
+        // Verwijder pending class van gesynchroniseerde entries
+        unsynced.forEach(e => {
+          document.querySelector(`.log-entry[data-id="${e.id}"]`)?.classList.remove('pending')
+        })
+        updatePendingBanner()
+        showToast(`${count} notitie${count !== 1 ? 's' : ''} gesynchroniseerd`, 'success')
+      }
+    })
+  }
+
+  // Sync bij herstelde verbinding
+  window.addEventListener('online', onOnline)
+  function onOnline() {
+    syncPending(sessionId, supabase).then(count => {
+      if (count > 0) {
+        unsynced.forEach(e => {
+          document.querySelector(`.log-entry[data-id="${e.id}"]`)?.classList.remove('pending')
+        })
+        updatePendingBanner()
+        showToast(`${count} notitie${count !== 1 ? 's' : ''} gesynchroniseerd`, 'success')
+      }
+    })
   }
 
   // ── Camera device list ─────────────────────────────────────────────
-  // Vraag kort toestemming om device-labels te kunnen tonen, stop dan meteen
   let onDeviceChange = null
   if (navigator.mediaDevices) {
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -620,27 +750,35 @@ export async function renderLogger(sessionId, user) {
         stream.getTracks().forEach(t => t.stop())
         return camera.populateDevices()
       })
-      .catch(() => camera.populateDevices()) // geen toestemming: toon generieke namen
+      .catch(() => camera.populateDevices())
     onDeviceChange = () => camera.populateDevices()
     navigator.mediaDevices.addEventListener('devicechange', onDeviceChange)
+  }
+
+  // ── Restore TC mode ───────────────────────────────────────────────
+  const savedMode = sessionStorage.getItem(`tc-mode-${sessionId}`)
+  if (savedMode && savedMode !== 'session') {
+    window.setTcMode(savedMode)
   }
 
   // ── Focus ─────────────────────────────────────────────────────────
   document.getElementById('note-input').focus()
 
-  // ── Cleanup on navigate away ──────────────────────────────────────
+  // ── Timers ────────────────────────────────────────────────────────
   const atemDotInterval = setInterval(updateAtemDot, 500)
 
-  // Enter key in bridge naam veld
   document.getElementById('atem-bridge-name')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') window.connectAtem()
   })
 
+  // ── Cleanup on navigate away ──────────────────────────────────────
   window._loggerCleanup = () => {
     cancelAnimationFrame(rafId)
     clearInterval(atemDotInterval)
     camera.stop()
     if (onDeviceChange) navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
+    window.removeEventListener('keydown', handleGlobalKey)
+    window.removeEventListener('online', onOnline)
     supabase.removeChannel(channel)
     supabase.removeChannel(atemChannel)
     sessionStorage.removeItem(`tc-mode-${sessionId}`)

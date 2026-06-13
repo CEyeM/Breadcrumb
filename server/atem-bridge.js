@@ -1,14 +1,10 @@
-// Laad Supabase credentials uit de parent .env (de frontend .env)
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') })
 
 const { Atem } = require('atem-connection')
 const { createClient } = require('@supabase/supabase-js')
-
-// ATEM IP als argument: node atem-bridge.js 192.168.1.100
 const fs = require('fs')
 const path = require('path')
 
-// IP en bridge naam via argumenten of via opgeslagen config
 let ATEM_IP = process.argv[2]
 let BRIDGE_NAME = process.argv[3]
 
@@ -29,7 +25,6 @@ if (!ATEM_IP) {
 if (!BRIDGE_NAME) BRIDGE_NAME = 'default'
 const CHANNEL_NAME = `atem-tc-${BRIDGE_NAME}`
 
-// Sla IP + naam op voor auto-start
 fs.writeFileSync(path.join(__dirname, '.atem-ip'), `${ATEM_IP} ${BRIDGE_NAME}`)
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
@@ -50,15 +45,46 @@ channel.subscribe((status) => {
   if (status === 'SUBSCRIBED') console.log(`[supabase] Realtime channel actief: ${CHANNEL_NAME}`)
 })
 
+// ── Status broadcast ─────────────────────────────────────────────
+function broadcastStatus(status) {
+  channel.send({ type: 'broadcast', event: 'bridge-status', payload: { status, ts: Date.now() } })
+    .catch(e => console.warn('[supabase] Status broadcast fout:', e))
+}
+
+// ── Exponential backoff reconnect ─────────────────────────────────
+const MIN_DELAY_MS = 2000
+const MAX_DELAY_MS = 30000
+let reconnectDelay = MIN_DELAY_MS
+let reconnectTimer = null
+
+function scheduleReconnect() {
+  if (reconnectTimer) return
+  console.log(`[atem] Opnieuw verbinden over ${reconnectDelay / 1000}s…`)
+  broadcastStatus('reconnecting')
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null
+    console.log(`[atem] Verbindingspoging met ${ATEM_IP}…`)
+    atem.connect(ATEM_IP)
+    reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY_MS)
+  }, reconnectDelay)
+}
+
+// ── ATEM ─────────────────────────────────────────────────────────
 const atem = new Atem()
 let lastSentAt = 0
 const MIN_INTERVAL_MS = 100
 
-atem.on('connected', () => console.log(`[atem] Verbonden met ${ATEM_IP}`))
+atem.on('connected', () => {
+  console.log(`[atem] Verbonden met ${ATEM_IP}`)
+  reconnectDelay = MIN_DELAY_MS
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+  broadcastStatus('connected')
+})
 
 atem.on('disconnected', () => {
-  console.log('[atem] Verbinding verbroken — opnieuw proberen over 5s...')
-  setTimeout(() => atem.connect(ATEM_IP), 5000)
+  console.log('[atem] Verbinding verbroken')
+  broadcastStatus('disconnected')
+  scheduleReconnect()
 })
 
 atem.on('stateChanged', (state, pathToChange) => {
@@ -77,7 +103,15 @@ atem.on('stateChanged', (state, pathToChange) => {
   process.stdout.write(`\r[atem] TC: ${tcStr}   `)
 })
 
-atem.on('error', (e) => console.error('[atem] Fout:', e))
+atem.on('error', (e) => {
+  console.error('[atem] Fout:', e)
+  scheduleReconnect()
+})
 
-console.log(`[atem] Verbinden met ${ATEM_IP}...`)
+function formatTC(tc) {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(tc.hours)}:${pad(tc.minutes)}:${pad(tc.seconds)}:${pad(tc.frames)}`
+}
+
+console.log(`[atem] Verbinden met ${ATEM_IP}…`)
 atem.connect(ATEM_IP)
