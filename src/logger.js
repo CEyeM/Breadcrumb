@@ -388,10 +388,7 @@ export async function renderLogger(sessionId, user) {
   }
 
   window.toggleInputTag = (key) => {
-    const idx = selectedTags.indexOf(key)
-    if (idx >= 0) selectedTags.splice(idx, 1)
-    else selectedTags.push(key)
-    document.getElementById(`tag-input-${key}`)?.classList.toggle('active', selectedTags.includes(key))
+    window.logNote([key])
   }
 
   renderTagInputRow()
@@ -464,8 +461,7 @@ export async function renderLogger(sessionId, user) {
 
     const tagKey = SHORTCUT_TO_TAG[e.key.toLowerCase()]
     if (tagKey) {
-      window.toggleInputTag(tagKey)
-      document.getElementById('note-input')?.focus()
+      window.logNote([tagKey])
     }
   }
   window.addEventListener('keydown', handleGlobalKey)
@@ -500,16 +496,18 @@ export async function renderLogger(sessionId, user) {
   }
 
   // ── Logging ───────────────────────────────────────────────────────
-  window.logNote = async () => {
+  window.logNote = async (tagsOverride = null) => {
     const input = document.getElementById('note-input')
     const text = input.value.trim()
-    if (!text) return
+    const tags = tagsOverride !== null ? tagsOverride : [...selectedTags]
+
+    // Tekst verplicht alleen als er ook geen tags zijn
+    if (!text && !tags.length) return
 
     const id = crypto.randomUUID()
     const timecode  = tc.getTC()
     const elapsed_s = parseFloat(tc.getElapsedSec().toFixed(3))
     const wall_time = new Date().toISOString()
-    const tags      = [...selectedTags]
     const entryData = { id, session_id: sessionId, timecode, elapsed_s, note: text, wall_time, tags }
 
     bufferEntry(sessionId, { ...entryData, localId: id, synced: false })
