@@ -38,11 +38,10 @@ export async function renderLogger(sessionId, user) {
               <button class="tc-mode-btn active" id="mode-session" onclick="setTcMode('session')">SESSIE</button>
               <button class="tc-mode-btn" onclick="resetTimer()">RESET</button>
             </div>
-            <button class="tc-mode-btn" id="mode-tod" onclick="setTcMode('tod')">SYNC</button>
+            <button class="tc-mode-btn" id="mode-tod" onclick="activateSync()">SYNC</button>
             <button class="tc-mode-btn" id="mode-atem-live" onclick="openAtemBridge()">
               <span class="atem-dot" id="atem-dot"></span>ATEM LIVE
             </button>
-            <button class="btn btn-ghost btn-sm" id="sync-btn" onclick="openSync()" style="display:none">⟲ Sync</button>
           </div>
         </div>
 
@@ -254,7 +253,12 @@ export async function renderLogger(sessionId, user) {
     ;['session','tod','atem-live'].forEach(m => {
       document.getElementById(`mode-${m}`)?.classList.toggle('active', m === mode)
     })
-    document.getElementById('sync-btn').style.display = mode === 'tod' ? 'inline-flex' : 'none'
+  }
+
+  // SYNC: schakel naar time-of-day modus en open meteen het sync-venster
+  window.activateSync = () => {
+    window.setTcMode('tod')
+    window.openSync()
   }
 
   // ── ATEM Bridge modal ─────────────────────────────────────────────
