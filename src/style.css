@@ -520,12 +520,10 @@ header {
 
 /* ── CAMERA HELP ── */
 .cam-help {
-  margin: auto 16px 0;
-  align-self: stretch;
+  /* margin-bottom:auto duwt de camera naar onderen, blokje blijft bovenaan */
+  margin: 12px auto auto;
   max-width: 360px;
   width: calc(100% - 32px);
-  margin-left: auto;
-  margin-right: auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
