@@ -72,7 +72,8 @@ export async function renderLogger(sessionId, user) {
               <li><b>Enter</b> — zet de timecode vast op dit moment (lege marker)</li>
               <li><b>Typ + Enter</b> — koppelt je notitie aan die marker; de timecode blijft van het eerste moment</li>
               <li><b>Tag-knop</b> of <b>G / F / B / A</b> — markeer direct met een categorie</li>
-              <li><b>Spatie</b> — spring naar het notitieveld · <b>?</b> — alle shortcuts</li>
+              <li><b>Spatie</b> — zet de cursor in het notitieveld om te typen</li>
+              <li><b>?</b> — open het overzicht met alle sneltoetsen</li>
             </ul>
           </div>
 
