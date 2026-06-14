@@ -52,12 +52,11 @@ export async function renderLogger(sessionId, user) {
 
         <div style="display:flex;align-items:center;gap:16px">
           <div class="rt-indicator">
-            <div class="rt-dot" id="rt-dot"></div>
-            <span id="rt-label">SYNC</span>
-          </div>
-          <div class="rec-indicator">
-            <div class="rec-dot active" id="rec-dot"></div>
-            <span>REC</span>
+            <div class="rt-top">
+              <div class="rt-dot" id="rt-dot"></div>
+              <span id="rt-label">VERBINDEN…</span>
+            </div>
+            <span class="rt-sub" id="rt-sublabel">verbinding maken…</span>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="openShortcuts()" title="Toetsenbord shortcuts (?)">?</button>
         </div>
@@ -819,7 +818,11 @@ export async function renderLogger(sessionId, user) {
     .subscribe((status) => {
       const connected = status === 'SUBSCRIBED'
       rtDot.classList.toggle('connected', connected)
-      rtLabel.textContent = connected ? 'LIVE' : 'SYNC'
+      rtLabel.textContent = connected ? 'LIVE' : 'OFFLINE'
+      const sub = document.getElementById('rt-sublabel')
+      if (sub) sub.textContent = connected
+        ? 'markers syncen live'
+        : 'verbinding kwijt — opnieuw verbinden…'
     })
 
   // ── ATEM channel ──────────────────────────────────────────────────

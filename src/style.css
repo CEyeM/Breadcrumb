@@ -414,26 +414,6 @@ header {
   border-color: var(--accent);
 }
 
-.rec-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.1em;
-}
-.rec-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-  transition: background 0.2s;
-}
-.rec-dot.active {
-  background: var(--red);
-  box-shadow: 0 0 8px var(--red);
-  animation: pulse 1s ease-in-out infinite;
-}
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
 /* ── MAIN LAYOUT ── */
@@ -780,20 +760,36 @@ header {
 /* ── REALTIME INDICATOR ── */
 .rt-indicator {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   font-family: var(--mono);
-  font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.08em;
+}
+.rt-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+.rt-sub {
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  opacity: 0.85;
 }
 .rt-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--muted);
-  transition: background 0.3s;
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red);
+  transition: background 0.3s, box-shadow 0.3s;
 }
-.rt-dot.connected { background: var(--green); }
+.rt-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
 
 /* ── ATEM DOT in mode button ── */
 .atem-dot {
