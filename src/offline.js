@@ -27,6 +27,15 @@ export function removePending(sessionId, localId) {
   saveBuffer(sessionId, loadBuffer(sessionId).filter(e => e.localId !== localId))
 }
 
+export function updateBuffered(sessionId, id, patch) {
+  let changed = false
+  const next = loadBuffer(sessionId).map(e => {
+    if (e.localId === id || e.id === id) { changed = true; return { ...e, ...patch } }
+    return e
+  })
+  if (changed) saveBuffer(sessionId, next)
+}
+
 export function clearPendingBuffer(sessionId) {
   localStorage.removeItem(STORAGE_KEY(sessionId))
 }

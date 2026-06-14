@@ -624,6 +624,11 @@ header {
 
 .log-entry:hover { background: var(--surface2); border-bottom-color: var(--border); }
 
+.log-entry.editing {
+  background: var(--surface2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .entry-tc {
   font-family: var(--mono);
   font-size: 11px;

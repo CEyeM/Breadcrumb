@@ -3,7 +3,7 @@ import { TimecodeEngine, FPS_OPTIONS } from './timecode.js'
 import { CameraManager } from './camera.js'
 import {
   bufferEntry, markSynced, removePending, clearPendingBuffer,
-  getUnsynced, syncPending, showToast
+  getUnsynced, syncPending, showToast, updateBuffered
 } from './offline.js'
 import { TAGS, TAG_SHORTCUTS, SHORTCUT_TO_TAG } from './tags.js'
 
@@ -256,7 +256,7 @@ export async function renderLogger(sessionId, user) {
   let entries = []
   let rafId = null
   let bridgeStatus = null
-  let selectedTags = []
+  let activeMarker = null   // { id, tags } — bevroren marker die op tekst/tags wacht
   let activeFilters = new Set()
   let exportTagFilter = new Set()
 
@@ -380,15 +380,34 @@ export async function renderLogger(sessionId, user) {
   function renderTagInputRow() {
     const row = document.getElementById('tag-row')
     if (!row) return
+    const activeTags = activeMarker?.tags || []
     row.innerHTML = Object.entries(TAGS).map(([key, tag]) => {
       const sc = TAG_SHORTCUTS[key]
-      return `<button class="tag-input-btn" id="tag-input-${key}" onclick="toggleInputTag('${key}')"
+      const on = activeTags.includes(key) ? ' active' : ''
+      return `<button class="tag-input-btn${on}" id="tag-input-${key}" onclick="addTag('${key}')"
         style="--tag-color:${tag.color}" title="${tag.label} (${sc})">${tag.label}</button>`
     }).join('')
   }
 
-  window.toggleInputTag = (key) => {
-    window.logNote([key])
+  // Tag-knop: voeg toe aan de actieve (bevroren) marker, of maak direct
+  // een nieuwe marker op de huidige timecode met deze tag.
+  window.addTag = async (key) => {
+    if (activeMarker) {
+      const has = activeMarker.tags.includes(key)
+      activeMarker.tags = has
+        ? activeMarker.tags.filter(t => t !== key)
+        : [...activeMarker.tags, key]
+      await updateMarker(activeMarker.id, { tags: [...activeMarker.tags] })
+      renderTagInputRow()
+      return
+    }
+    const input = document.getElementById('note-input')
+    const text = input.value.trim()
+    const m = await createMarker(text, [key])
+    input.value = ''
+    autoResize(input)
+    setActiveMarker(text ? null : { id: m.id, tags: [key] })
+    input.focus()
   }
 
   renderTagInputRow()
@@ -461,7 +480,7 @@ export async function renderLogger(sessionId, user) {
 
     const tagKey = SHORTCUT_TO_TAG[e.key.toLowerCase()]
     if (tagKey) {
-      window.logNote([tagKey])
+      window.addTag(tagKey)
     }
   }
   window.addEventListener('keydown', handleGlobalKey)
@@ -495,45 +514,89 @@ export async function renderLogger(sessionId, user) {
     }).join('')
   }
 
-  // ── Logging ───────────────────────────────────────────────────────
-  window.logNote = async (tagsOverride = null) => {
+  // ── Marker helpers ────────────────────────────────────────────────
+  function refreshEntryUI(id) {
+    const el = document.querySelector(`.log-entry[data-id="${id}"]`)
+    const entry = entries.find(e => e.id === id)
+    if (!el || !entry) return
+    const tags = entry.tags || []
+    const tagsHtml = tags.length ? `<div class="entry-tags">${renderTagBadges(tags)}</div>` : ''
+    const body = el.querySelector('.entry-body')
+    if (body) body.innerHTML = `${tagsHtml}<div class="entry-text">${escHtml(entry.note)}</div>`
+    applyFilter()
+  }
+
+  function setActiveMarker(state) {
+    activeMarker = state
+    document.querySelectorAll('.log-entry.editing').forEach(e => e.classList.remove('editing'))
     const input = document.getElementById('note-input')
-    const text = input.value.trim()
-    const tags = tagsOverride !== null ? tagsOverride : [...selectedTags]
+    if (state) {
+      document.querySelector(`.log-entry[data-id="${state.id}"]`)?.classList.add('editing')
+      if (input) input.placeholder = 'Notitie toevoegen aan marker…  (Enter)'
+    } else if (input) {
+      input.placeholder = 'Notitie…  (Enter = opslaan)'
+    }
+    renderTagInputRow()
+  }
 
-    // Tekst verplicht alleen als er ook geen tags zijn
-    if (!text && !tags.length) return
-
+  async function createMarker(note, tags) {
     const id = crypto.randomUUID()
     const timecode  = tc.getTC()
     const elapsed_s = parseFloat(tc.getElapsedSec().toFixed(3))
     const wall_time = new Date().toISOString()
-    const entryData = { id, session_id: sessionId, timecode, elapsed_s, note: text, wall_time, tags }
+    const entryData = { id, session_id: sessionId, timecode, elapsed_s, note: note || '', wall_time, tags: tags || [] }
 
     bufferEntry(sessionId, { ...entryData, localId: id, synced: false })
-
-    input.value = ''
-    autoResize(input)
-    // Reset selected tags
-    selectedTags = []
-    document.querySelectorAll('.tag-input-btn.active').forEach(b => b.classList.remove('active'))
-
     renderEntry({ ...entryData, pending: true })
     updatePendingBanner()
 
-    const { error } = await supabase
-      .from('log_entries')
-      .insert(entryData)
-
+    const { error } = await supabase.from('log_entries').insert(entryData)
     if (error) {
       console.error('[log] Opslaan mislukt:', error, entryData)
       showToast('Opslaan mislukt — wordt opnieuw geprobeerd', 'error')
+    } else {
+      markSynced(sessionId, id)
+      document.querySelector(`.log-entry[data-id="${id}"]`)?.classList.remove('pending')
+      updatePendingBanner()
+    }
+    return entryData
+  }
+
+  async function updateMarker(id, patch) {
+    const entry = entries.find(e => e.id === id)
+    if (entry) Object.assign(entry, patch)
+    refreshEntryUI(id)
+    updateBuffered(sessionId, id, patch)
+    const { error } = await supabase.from('log_entries').update(patch).eq('id', id)
+    if (error) {
+      console.error('[log] Bijwerken mislukt:', error, patch)
+      showToast('Bijwerken mislukt — wordt opnieuw geprobeerd', 'error')
+    }
+  }
+
+  // ── Logging (twee-staps) ──────────────────────────────────────────
+  // Eerste Enter bevriest de huidige timecode in een lege marker;
+  // de volgende Enter koppelt de getypte tekst aan diezelfde marker.
+  window.logNote = async () => {
+    const input = document.getElementById('note-input')
+    const text = input.value.trim()
+
+    // Stap 2: tekst koppelen aan de bevroren marker
+    if (activeMarker && text) {
+      await updateMarker(activeMarker.id, { note: text })
+      input.value = ''
+      autoResize(input)
+      setActiveMarker(null)
       return
     }
 
-    markSynced(sessionId, id)
-    document.querySelector(`.log-entry[data-id="${id}"]`)?.classList.remove('pending')
-    updatePendingBanner()
+    // Anders: een nieuwe marker bevriezen op de huidige timecode.
+    // Met tekst → direct afgerond; zonder tekst → wacht op een notitie.
+    const m = await createMarker(text, [])
+    input.value = ''
+    autoResize(input)
+    setActiveMarker(text ? null : { id: m.id, tags: [] })
+    if (!text) input.focus()
   }
 
   window.handleKey = (e) => {
@@ -579,6 +642,7 @@ export async function renderLogger(sessionId, user) {
 
   window.deleteEntry = async (id) => {
     if (!confirm('Notitie verwijderen?')) return
+    if (activeMarker?.id === id) setActiveMarker(null)
     const isPending = document.querySelector(`.log-entry[data-id="${id}"]`)?.classList.contains('pending')
     if (isPending) {
       removePending(sessionId, id)
@@ -600,6 +664,7 @@ export async function renderLogger(sessionId, user) {
     const { error } = await supabase.from('log_entries').delete().eq('session_id', sessionId)
     if (error) { console.error('Clear error:', error); showToast('Wissen mislukt', 'error'); return }
     clearPendingBuffer(sessionId)
+    setActiveMarker(null)
     entries = []
     showEmptyState()
     activeFilters.clear()
@@ -713,11 +778,23 @@ export async function renderLogger(sessionId, user) {
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'log_entries' },
       ({ old: entry }) => {
         if (!entries.find(e => e.id === entry.id)) return
+        if (activeMarker?.id === entry.id) setActiveMarker(null)
         entries = entries.filter(e => e.id !== entry.id)
         document.querySelector(`.log-entry[data-id="${entry.id}"]`)?.remove()
         if (!entries.length) showEmptyState()
         applyFilter()
         updateExportBtns()
+      })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'log_entries' },
+      ({ new: entry }) => {
+        if (entry.session_id !== sessionId) return
+        const local = entries.find(e => e.id === entry.id)
+        if (!local) return
+        // Niet overschrijven terwijl wij deze marker zelf aan het bewerken zijn
+        if (activeMarker?.id === entry.id) return
+        local.note = entry.note ?? ''
+        local.tags = Array.isArray(entry.tags) ? entry.tags : []
+        refreshEntryUI(entry.id)
       })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions' },
       ({ new: s }) => {
