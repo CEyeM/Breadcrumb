@@ -69,6 +69,18 @@ export async function renderLogger(sessionId, user) {
           <div class="camera-wrap" id="camera-wrap">
             <video id="webcam" autoplay muted playsinline style="display:none"></video>
             <div class="camera-overlay"></div>
+
+            <button class="cam-help-toggle" id="cam-help-toggle" onclick="toggleCamHelp()" title="Uitleg tonen/verbergen">?</button>
+            <div class="cam-help" id="cam-help">
+              <div class="cam-help-title">Hoe werkt het?</div>
+              <ul>
+                <li><b>Enter</b> — zet de timecode vast op dit moment (lege marker)</li>
+                <li><b>Typ + Enter</b> — koppelt je notitie aan die marker; de timecode blijft van het eerste moment</li>
+                <li><b>Tag-knop</b> of <b>G / F / B / A</b> — markeer direct met een categorie</li>
+                <li><b>Spatie</b> — spring naar het notitieveld · <b>?</b> — alle shortcuts</li>
+              </ul>
+            </div>
+
             <div class="no-cam" id="no-cam">
               <svg class="cam-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="2" y="12" width="36" height="26" rx="3"/>
@@ -375,6 +387,16 @@ export async function renderLogger(sessionId, user) {
   // ── Shortcuts modal ───────────────────────────────────────────────
   window.openShortcuts  = () => { document.getElementById('shortcuts-modal').style.display = 'flex' }
   window.closeShortcuts = () => { document.getElementById('shortcuts-modal').style.display = 'none' }
+
+  // ── Camera uitleg ─────────────────────────────────────────────────
+  window.toggleCamHelp = () => {
+    const help = document.getElementById('cam-help')
+    const hidden = help.classList.toggle('hidden')
+    localStorage.setItem('cam-help-hidden', hidden ? '1' : '0')
+  }
+  if (localStorage.getItem('cam-help-hidden') === '1') {
+    document.getElementById('cam-help')?.classList.add('hidden')
+  }
 
   // ── Tags: input-rij ───────────────────────────────────────────────
   function renderTagInputRow() {
