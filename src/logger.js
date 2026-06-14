@@ -73,8 +73,7 @@ export async function renderLogger(sessionId, user) {
               <li><b>Typ + Enter</b> — koppelt je notitie aan die marker; de timecode blijft van het eerste moment</li>
               <li><b>Tag-knop</b> of <b>G / F / B / A</b> — markeer direct met een categorie</li>
               <li><b>Spatie</b> — zet de cursor in het notitieveld om te typen</li>
-              <li><b>?</b> — open het overzicht met alle sneltoetsen</li>
-              <li class="cam-help-note">Spatie, ?, en de tag-toetsen (G/F/B/A) werken alleen als je niet in het notitieveld typt.</li>
+              <li class="cam-help-note">Spatie en de tag-toetsen (G/F/B/A) werken alleen als je niet in het notitieveld typt.</li>
             </ul>
           </div>
 
